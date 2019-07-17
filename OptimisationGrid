@@ -1,0 +1,182 @@
+using Rhino;
+using Rhino.Geometry;
+using Rhino.DocObjects;
+using Rhino.Collections;
+
+using GH_IO;
+using GH_IO.Serialization;
+using Grasshopper;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
+
+using System;
+using System.IO;
+using System.Xml;
+using System.Xml.Linq;
+using System.Linq;
+using System.Data;
+using System.Drawing;
+using System.Reflection;
+using System.Collections;
+using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+
+
+/// <summary>
+/// This class will be instantiated on demand by the Script component.
+/// </summary>
+public class Script_Instance : GH_ScriptInstance
+{
+#region Utility functions
+  /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="text">String to print.</param>
+  private void Print(string text) { /* Implementation hidden. */ }
+  /// <summary>Print a formatted String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="format">String format.</param>
+  /// <param name="args">Formatting parameters.</param>
+  private void Print(string format, params object[] args) { /* Implementation hidden. */ }
+  /// <summary>Print useful information about an object instance to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj) { /* Implementation hidden. */ }
+  /// <summary>Print the signatures of all the overloads of a specific method to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj, string method_name) { /* Implementation hidden. */ }
+#endregion
+
+#region Members
+  /// <summary>Gets the current Rhino document.</summary>
+  private readonly RhinoDoc RhinoDocument;
+  /// <summary>Gets the Grasshopper document that owns this script.</summary>
+  private readonly GH_Document GrasshopperDocument;
+  /// <summary>Gets the Grasshopper script component that owns this script.</summary>
+  private readonly IGH_Component Component;
+  /// <summary>
+  /// Gets the current iteration count. The first call to RunScript() is associated with Iteration==0.
+  /// Any subsequent call within the same solution will increment the Iteration count.
+  /// </summary>
+  private readonly int Iteration;
+#endregion
+
+  /// <summary>
+  /// This procedure contains the user code. Input parameters are provided as regular arguments,
+  /// Output parameters as ref arguments. You don't have to assign output parameters,
+  /// they will have a default value.
+  /// </summary>
+  private void RunScript(List<Curve> area, int cellSize, List<Curve> interiorObstacles, int xNum, int yNum, int zNum, bool reset, List<Curve> plan, ref object spatialPts, ref object viewerPts, ref object viewLn, ref object values)
+  {
+
+    //0717 2019
+    //Zehaoqin thesis
+
+
+    if(reset){
+      counter = 1;
+      reset = false;
+      pts.Clear();
+      humanPts.Clear();
+      viewLns.Clear();
+      ptsValue.Clear();
+      init = true;
+      rnd = new Random();
+
+    }
+
+    if( init){
+      initialGrid(xNum, yNum, zNum, area, cellSize, interiorObstacles);
+    }
+
+
+    CreatingLns(humanPts[counter], pts, plan);//check the view lines
+    ptsValue.Add(viewLns.Count);//how many viewlns are there in process
+    counter++;
+
+    spatialPts = pts;
+    viewerPts = humanPts;
+    viewLn = viewLns;
+    values = ptsValue;
+  }
+
+  // <Custom additional code> 
+  public static int trailLength = 20000;
+  bool[][] drawstate;
+  public static Random rnd;
+  bool collision;
+  int counter = 0;
+
+  List<Curve> viewLns = new List<Curve>();
+  List<Point3d> pts = new List<Point3d>();
+  List<Point3d> humanPts = new List<Point3d>();
+  List<int> ptsValue = new List<int>();
+  Random random = new Random();
+  Point3d [][][] mygrid;
+
+  bool init = true;
+
+  public void initialGrid(int xNum, int yNum, int zNum, List<Curve> area, int cellSize, List<Curve> interiorObstacles){
+
+    drawstate = new bool[xNum][];
+    mygrid = new Point3d[xNum][][];
+
+    init = false;
+
+    for(int i = 0;i < xNum;i++){
+
+      mygrid[i] = new Point3d[yNum][];
+      drawstate[i] = new bool[yNum];
+
+      for(int j = 0;j < yNum;j++){
+
+        mygrid[i][j] = new Point3d[zNum];
+        drawstate[i][j] = false;//intial the state of points with false
+
+        for(int s = 0; s < zNum;s++){
+
+          mygrid[i][j][s] = new Point3d(i * cellSize, j * cellSize, s * cellSize);// adding points into space
+
+          for(int k = 0;k < area.Count;k++){
+
+            int b = (int) area[k].Contains(mygrid[i][j][s], Plane.WorldXY, 0.01);//checking if the points were contained in the area
+            if(b == 1){
+              drawstate[i][j] = true;//then set the state of points with true
+            }
+          }
+          for(int h = 0;h < interiorObstacles.Count;h++){
+
+            int c = (int) interiorObstacles[h].Contains(mygrid[i][j][s], Plane.WorldXY, 0.01);//checking if the points were inside the obstacles
+            if(c == 1){
+              drawstate[i][j] = false;//set the state of points with false
+            }
+          }
+          if(drawstate[i][j] == true){//while state of points is true
+
+            pts.Add(mygrid[i][j][s]);//adding points into list
+            humanPts.Add(new Point3d(i * cellSize, j * cellSize, 1700));//viewer's height
+
+          }
+        }
+      }
+    }
+  }
+
+  public void CreatingLns(Point3d viewer, List<Point3d> spacePts, List<Curve> mainplan){//creating viewlns for analysing the 3d gaze possibilities in space
+
+    viewLns = new List<Curve>();//initial the viewlns list
+    for( int i = 0;i < spacePts.Count;++i){
+      Curve viewCrv = new LineCurve(new Line(viewer, spacePts[i]));//all the viewlns generated by viewer
+      double dist = viewer.DistanceTo(spacePts[i]);//calculate the distance between all the points in space and viewer
+      if( dist < 4000){//if distance less than 4m
+        viewLns.Add(viewCrv);
+        for( int j = 0;j < mainplan.Count;j++){
+          collision = Rhino.Geometry.Curve.PlanarCurveCollision(mainplan[j], viewCrv, Plane.WorldXY, 0.01);//if view lines were intersected with plan's curve
+          if(collision == true){
+            viewLns.Remove(viewCrv);//then remove those view lines
+          }
+        }
+      }
+    }
+  }
+  // </Custom additional code> 
+}
