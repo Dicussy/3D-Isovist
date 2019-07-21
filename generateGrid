@@ -1,0 +1,58 @@
+ private void RunScript(bool reset, int xNum, int yNum, int size, List<Point3d> resultPts, ref object A, ref object B, ref object C)
+  {
+
+    if(reset || init){
+
+      gridPts.Clear();
+      recList.Clear();
+      intList.Clear();
+
+    }
+    initGrid(xNum, yNum, size, resultPts);
+
+    A = gridPts;
+    B = recList;
+    C = intList;
+  }
+
+  // <Custom additional code> 
+
+  public static List<Point3d> gridPts = new List<Point3d>();
+  public static Point3d[][] gridPtsArray;
+  public static Rectangle3d[][] recArray;
+  public static List<int> intList = new List<int>();
+
+  public static List<Rectangle3d> recList = new List<Rectangle3d>();
+
+  public static int[][] numbers;
+
+  public static bool reset;
+  public static bool init = true;
+
+  public void initGrid(int xNum, int yNum, int size, List<Point3d> resultPts){
+    init = false;
+    gridPtsArray = new Point3d[xNum][];
+    numbers = new int[xNum][];
+    recArray = new Rectangle3d[xNum][];
+    for(int i = 0;i < xNum;++i){
+      gridPtsArray[i] = new Point3d[yNum];
+      numbers[i] = new int[yNum];
+      recArray[i] = new Rectangle3d[yNum];
+
+      for(int j = 0;j < yNum;++j){
+
+        numbers[i][j] = 0;
+        recArray[i][j] = new Rectangle3d(new Plane(gridPtsArray[i][j], new Vector3d(0, 0, 1)), size, size);
+        gridPtsArray[i][j] = new Point3d(i * size, j * size, 0);
+
+        for(int p = 0;p < resultPts.Count;++p){
+          if(resultPts[p].DistanceTo(gridPtsArray[i][j]) < size){
+            numbers[i][j] += 1;
+          }
+        }
+        intList.Add(numbers[i][j]);
+        gridPts.Add(gridPtsArray[i][j]);
+        //recList.Add(new Rectangle3d(new Plane(gridPtsArray[i][j], new Vector3d(0, 0, 1)), size, size));
+      }
+    }
+  }
