@@ -1,0 +1,26 @@
+ private void RunScript(bool reset, Curve crv, List<Curve> viewersLns, double counter, ref object A)
+  {
+    if(reset){
+      intersections.Clear();
+      distance.Clear();
+    }
+
+    if(counter < 10){
+      findingIntersect(crv, viewersLns);
+    }
+    A = intersections;
+  }
+
+  // <Custom additional code> 
+  public static List<Point3d> intersections = new List<Point3d>();
+  public static List<double> distance = new List<double>();
+  public void findingIntersect(Curve crv, List<Curve> viewersLn){
+
+    for(int i = 0;i < viewersLn.Count;++i){
+      var para = Rhino.Geometry.Intersect.Intersection.CurveCurve(viewersLn[i], crv, 0.001, 0.0);
+      if(para != null){
+        intersections.Add(para[0].PointA);
+        //distance.Add(viewer.DistanceTo(para[0].PointA));
+      }
+    }
+  }
