@@ -1,0 +1,54 @@
+private void RunScript(bool reset, List<Curve> traces, object y, double viewLength, double steps, double dirSteps, ref object A, ref object B, ref object C, ref object D)
+  {
+
+    if(reset){
+      counter = 0;
+      step = 0;
+      vecList.Clear();
+      viewersPos.Clear();
+      viewLns.Clear();
+      init = false;
+    }
+    if(counter < 10){
+      findDir(traces, counter, viewLength, dirSteps);
+      counter += (float) steps;
+      step++;
+    }
+    else{
+    }
+
+    //A = vecList;
+    B = viewersPos;
+    C = viewLns;
+    D = counter;
+
+  }
+
+  // <Custom additional code> 
+
+  public static List<Curve> crvList = new List<Curve>();
+  public static List<Curve> viewLns = new List<Curve>();
+  public static List<Vector3d> vecList = new List<Vector3d>();
+  public static List<Point3d> viewersPos = new List<Point3d>();
+
+  public static float counter = 0f;
+  public static int step;
+
+  public static bool reset;
+  public static bool init = true;
+
+  public static Vector3d dir;
+  public static Curve viewLn;
+
+
+  public void findDir(List < Curve > crvList, float counter, double viewLength, double dirSteps){
+
+    for(int i = 0;i < crvList.Count;++i){
+      Point3d onCrvPts = crvList[i].PointAt(counter / 10);
+      Point3d onCrvPtsNext = crvList[i].PointAt((counter + dirSteps) / 10);
+      dir = new Vector3d(onCrvPtsNext.X - onCrvPts.X, onCrvPtsNext.Y - onCrvPts.Y, onCrvPtsNext.Z - onCrvPts.Z);
+      vecList.Add(dir);
+      viewersPos.Add(onCrvPts);
+      viewLns.Add(new LineCurve(new Line(onCrvPts, dir, viewLength)));
+    }
+  }
